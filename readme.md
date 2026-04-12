@@ -1,7 +1,7 @@
 # zoo 动物园框架
 
 为简约而生  
-它是继承于 zgg(https://github.com/suisrc/git.git) 框架  
+它是继承于 zgg(https://github.com/suisrc/zgg.git) 框架  
 分离 kwdog(kwcat, kwrat), kwlog, front 等模块（独立出来）  
 创建一个zoant(https://github.com/suisrc/zoant.git) 模块，用来孵化为模块  
 
