@@ -298,34 +298,6 @@ func HTML0(zg *Zoo, rr *http.Request, rw http.ResponseWriter, rs any, tp string)
 // close function
 type Closed func()
 
-// 定义配置函数
-type OptionFunc func(SvcKit) Closed
-
-var (
-	// 应用配置列表，依据 key 排序，初始化顺序
-	options = []Ref[string, OptionFunc]{}
-
-	optlock = sync.Mutex{} // 注册方法，全局锁即可
-	// optlock = sync.RWMutex{}
-	// optlock = xsync.NewRBMutex()
-)
-
-// 在 init 注册配置函数
-func Register(key string, opt OptionFunc) {
-	optlock.Lock() // 注册方法，全局锁即可
-	defer optlock.Unlock()
-	// options = append(options, Ref[string, OptionFunc]{Key: key, Val: opt})
-	idx := slices.IndexFunc(options, func(opt Ref[string, OptionFunc]) bool {
-		return opt.Key > key
-	})
-	ref := Ref[string, OptionFunc]{Key: key, Val: opt}
-	if idx < 0 {
-		options = append(options, ref)
-	} else {
-		options = slices.Insert(options, idx, ref)
-	}
-}
-
 type TplCtx struct {
 	Key string             // 模版编码
 	Tpl *template.Template // 模版

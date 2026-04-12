@@ -110,8 +110,8 @@ func (aa *svcz) Inject(obj any) SvcKit {
 				if tField.Type == vType || // 属性是一个接口，判断接口是否可以注入
 					tField.Type.Kind() == reflect.Interface && vType.Implements(tField.Type) {
 					tElem.Field(i).Set(reflect.ValueOf(value))
-					if IsDebug() {
-						Logf("[_svckit_]: [inject] %s <- %s\n", aa.toInjName(tType.String(), tField.Name), vType)
+					if isDebug() {
+						logf("[_svckit_]: [inject] %s <- %s\n", aa.toInjName(tType.String(), tField.Name), vType)
 					}
 					found = true
 					break
@@ -120,10 +120,10 @@ func (aa *svcz) Inject(obj any) SvcKit {
 			if !found {
 				errstr := fmt.Sprintf("[_svckit_]: [inject] %s <- %s.(type) error, service not found", //
 					aa.toInjName(tType.String(), tField.Name), tField.Type)
-				if IsDebug() {
-					Logn(errstr)
+				if isDebug() {
+					logn(errstr)
 				} else {
-					Exit(errstr) // 生产环境，注入失败，则 panic
+					exit(errstr) // 生产环境，注入失败，则 panic
 				}
 			}
 		} else {
@@ -132,16 +132,16 @@ func (aa *svcz) Inject(obj any) SvcKit {
 			if val == nil {
 				errstr := fmt.Sprintf("[_svckit_]: [inject] %s <- %s.(name) error, service not found", //
 					aa.toInjName(tType.String(), tField.Name), tagVal)
-				if IsDebug() {
-					Logn(errstr)
+				if isDebug() {
+					logn(errstr)
 				} else {
-					Exit(errstr) // 生产环境，注入失败，则 panic
+					exit(errstr) // 生产环境，注入失败，则 panic
 				}
 				continue
 			}
 			tElem.Field(i).Set(reflect.ValueOf(val))
-			if IsDebug() {
-				Logf("[_svckit_]: [inject] %s <- %s\n", aa.toInjName(tType.String(), tField.Name), reflect.TypeOf(val))
+			if isDebug() {
+				logf("[_svckit_]: [inject] %s <- %s\n", aa.toInjName(tType.String(), tField.Name), reflect.TypeOf(val))
 			}
 		}
 	}
@@ -189,13 +189,13 @@ func FieldInject(target any, value any, tag string, debug bool) bool {
 			tField.Type.Kind() == reflect.Interface && vType.Implements(tField.Type) {
 			tElem.Field(i).Set(reflect.ValueOf(value))
 			if debug {
-				Logf("[_inject_]: [succ] %s.%s <- %s", tType, tField.Name, vType)
+				logf("[_inject_]: [succ] %s.%s <- %s", tType, tField.Name, vType)
 			}
 			return true // 注入成功
 		}
 	}
 	if debug {
-		Logf("[_inject_]: [fail] %s not found field.(%s)", tType, vType)
+		logf("[_inject_]: [fail] %s not found field.(%s)", tType, vType)
 	}
 	return false
 }

@@ -10,12 +10,19 @@ package zoc
 import (
 	"bytes"
 	crand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	mrand "math/rand"
 	"slices"
 	"unicode"
 )
+
+var HexStr = hex.EncodeToString
+
+func BtsStr(bs []byte) string {
+	return string(bytes.TrimSpace(bs))
+}
 
 func EqualFold(s, t string) bool {
 	if len(s) != len(t) {
@@ -161,7 +168,7 @@ func GenUUIDv4() (string, error) {
 		uuid[0:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:16]), nil
 }
 
-func UnicodeToRunes(srs ...[]byte) ([]byte, error) {
+func Unicode(srs ...[]byte) ([]byte, error) {
 	var rst bytes.Buffer
 	for _, src := range srs {
 		n := len(src)

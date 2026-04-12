@@ -28,9 +28,9 @@ var (
 	Version = "v0.0.0"
 	AppInfo = "(https://github.com/suisrc/zoo.git)"
 
-	G = new(struct {
-		Server EngineConfig
-	})
+	G = struct {
+		Server EngineConf
+	}{}
 
 	IngoreError = errors.New("ignore error")
 
@@ -44,7 +44,7 @@ var (
 )
 
 // 默认配置， Engine 配置需要内嵌该结构体
-type EngineConfig struct {
+type EngineConf struct {
 	Fxser   bool   `json:"xser"` // 标记 xser 头部信息
 	Local   bool   `json:"local"`
 	Addr    string `json:"addr" default:"0.0.0.0"`
@@ -77,8 +77,8 @@ type Zoo struct {
 
 // 默认相应函数 http.HandlerFunc(zoo.ServeHTTP)
 func (aa *Zoo) ServeHTTP(rw http.ResponseWriter, rr *http.Request) {
-	if IsDebug() {
-		Logf("[_request]: [%s] %s %s\n", aa.Engine.Name(), rr.Method, rr.URL.String())
+	if isDebug() {
+		logf("[_request]: [%s] %s %s\n", aa.Engine.Name(), rr.Method, rr.URL.String())
 	}
 	if G.Server.Fxser {
 		rw.Header().Set("Xser-Routerz", aa.Engine.Name())
@@ -95,40 +95,40 @@ func (aa *Zoo) ServeInit() bool {
 		aa.SvcKit = NewSvcKit(aa)
 	}
 	if builder, ok := Engines[G.Server.Engine]; !ok {
-		Logf("[_router_]: router not found by [-eng %s]\n", G.Server.Engine)
+		logf("[_router_]: router not found by [-eng %s]\n", G.Server.Engine)
 		return false
 	} else {
 		aa.Engine = builder(aa.SvcKit)
-		Logf("[_router_]: build %s.router by [-eng %s]\n", aa.Engine.Name(), G.Server.Engine)
+		logf("[_router_]: build %s.router by [-eng %s]\n", aa.Engine.Name(), G.Server.Engine)
 	}
 	if aa.TplKit == nil {
 		aa.TplKit = NewTplKit(aa.SvcKit)
 		if G.Server.TplPath != "" {
 			err := aa.TplKit.Preload(G.Server.TplPath)
 			if err != nil {
-				Logf("[_tplkit_]: Preload error: %v\n", err)
+				logf("[_tplkit_]: Preload error: %v\n", err)
 			}
 		}
 	}
 	// -----------------------------------------------
-	Logn("[register]: register server options...")
+	logn("[register]: register server options...")
 	for _, opt := range options {
 		if opt.Val == nil {
 			continue
 		}
-		if IsDebug() {
+		if isDebug() {
 			ekey := opt.Key
 			if size := len(ekey); size < 42 {
 				ekey += " " + strings.Repeat("-", 41-size)
 			}
-			Logf("[register]: %s", ekey)
+			logf("[register]: %s", ekey)
 		}
 		cls := opt.Val(aa.SvcKit)
 		if cls != nil {
 			aa.Closeds.Add(cls)
 		}
 		if aa._abort {
-			Logn("[register]: serve already stop! exit...")
+			logn("[register]: serve already stop! exit...")
 			return false // 退出
 		}
 	}
@@ -140,8 +140,8 @@ func (aa *Zoo) ServeInit() bool {
 // @param key: [method:]action, 如果 method 为空，则默认为 所有请求
 func (aa *Zoo) AddRouter(key string, handle HandleFunc) {
 	if key == "" {
-		if IsDebug() {
-			Logf("[_handle_]: %32s  %p  %s\n", "/", handle, GetFuncInfo(handle))
+		if isDebug() {
+			logf("[_handle_]: %32s  %p  %s\n", "/", handle, funcInfo(handle))
 		}
 		aa.Engine.Handle("", "", handle)
 		return
@@ -169,8 +169,8 @@ func (aa *Zoo) AddRouter(key string, handle HandleFunc) {
 		method = strings.ToUpper(method)
 	}
 
-	if IsDebug() { // log for debug
-		Logf("[_handle_]: %32s  %p  %s\n", method+" /"+action, handle, GetFuncInfo(handle))
+	if isDebug() { // log for debug
+		logf("[_handle_]: %32s  %p  %s\n", method+" /"+action, handle, funcInfo(handle))
 	}
 	aa.Engine.Handle(method, action, handle)
 }
@@ -178,7 +178,7 @@ func (aa *Zoo) AddRouter(key string, handle HandleFunc) {
 // 服务终止，注意，这里只会终止模版，不会终止服务， 终止服务，需要调用 hsv.Shutdown
 func (aa *Zoo) ServeStop(err ...string) {
 	if len(err) > 0 {
-		Logz(1, "[_server_]: serve stop,", strings.Join(err, " "))
+		logz(1, "[_server_]: serve stop,", strings.Join(err, " "))
 	}
 	if aa._abort {
 		return
@@ -189,7 +189,7 @@ func (aa *Zoo) ServeStop(err ...string) {
 			cls() // 模块关闭
 		}
 	}
-	Logn("[_server_]: services have been terminated")
+	logn("[_server_]: services have been terminated")
 }
 
 // 启动 HTTP 服务
@@ -199,7 +199,7 @@ func (aa *Zoo) RunServe() {
 	// 启动HTTP服务， 并可优雅的终止
 	for _, srv := range aa.Servers {
 		if srv != nil {
-			Logn("[_server_]: http server booting... linsten:", srv.Name(), srv.Addr())
+			logn("[_server_]: http server booting... linsten:", srv.Name(), srv.Addr())
 			go srv.RunServe()
 		}
 	}
@@ -210,21 +210,21 @@ func (aa *Zoo) RunServe() {
 // 等待中断信号以优雅地关闭服务器（设置 5 秒的超时时间）
 func (aa *Zoo) WaitFor() {
 	if len(aa.Servers) == 0 {
-		Logn("[_server_]: no server to wait for, exit...")
+		logn("[_server_]: no server to wait for, exit...")
 		return
 	}
 	ssc := make(chan os.Signal, 1)
 	signal.Notify(ssc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	<-ssc
-	Logn("[_server_]: services is shutting down...")
+	logn("[_server_]: services is shutting down...")
 	// 等待中断信号以优雅地关闭服务器（设置 5 秒的超时时间）
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, srv := range aa.Servers {
 		if srv != nil {
-			Logn("[_server_]: http server stoping...", srv.Name())
+			logn("[_server_]: http server stoping...", srv.Name())
 			if err := srv.Shutdown(ctx); err != nil {
-				Logn("[_server_]: http server shutdown error:", srv.Name(), err)
+				logn("[_server_]: http server shutdown error:", srv.Name(), err)
 			}
 		}
 	}
@@ -261,16 +261,16 @@ func (srv *servez) RunServe() {
 	if srv.Server.TLSConfig != nil {
 		if err := srv.Server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 			if srv.ErrExit {
-				Exit(fmt.Sprintf("[_server_]: server exit error: %s\n", err))
+				exit(fmt.Sprintf("[_server_]: server exit error: %s\n", err))
 			} else {
-				Logn(fmt.Sprintf("[_server_]: server error: %s\n", err))
+				logn(fmt.Sprintf("[_server_]: server error: %s\n", err))
 			}
 		}
 	} else if err := srv.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		if srv.ErrExit {
-			Exit(fmt.Sprintf("[_server_]: server exit error: %s\n", err))
+			exit(fmt.Sprintf("[_server_]: server exit error: %s\n", err))
 		} else {
-			Logn(fmt.Sprintf("[_server_]: server error: %s\n", err))
+			logn(fmt.Sprintf("[_server_]: server error: %s\n", err))
 		}
 	}
 }

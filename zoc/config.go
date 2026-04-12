@@ -68,18 +68,18 @@ func Register(b any) {
 	if ctype.Kind() == reflect.Func {
 		fn, ok := b.(func())
 		if !ok {
-			panic("z/zc: Register f(arg) must be [func()]")
+			panic("zoc: Register f(arg) must be [func()]")
 		}
 		FS[fmt.Sprintf("%p", b)] = fn
 		return
 	}
 	if ctype.Kind() != reflect.Pointer {
-		panic("z/zc: Register b must be pointer")
+		panic("zoc: Register b must be pointer")
 	}
 	GS[fmt.Sprintf("%v.%p", ctype.Elem(), b)] = b
 }
 
-func LoadConfig(cfs string) {
+func LoadConf(cfs string) {
 	load.Do(func() {
 		// var cfs string
 		// flag.StringVar(&cfs, "c", "", "config file path")

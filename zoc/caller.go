@@ -92,8 +92,8 @@ func ParseMethodInfo(finfo string) *MethodInfo {
 	return info
 }
 
-// GetFuncInfo 获取函数或方法的简短名称
-func GetFuncInfo(obj any) string {
+// FuncInfo 获取函数或方法的简短名称
+func FuncInfo(obj any) string {
 	if obj == nil {
 		return "<nil>"
 	}

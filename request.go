@@ -32,7 +32,7 @@ func ReadData(rr *http.Request) (*RaData, error) {
 func GetTraceID(request *http.Request) string {
 	traceid := request.Header.Get("X-Request-Id")
 	if traceid == "" {
-		traceid = GenStr("r", 32) // 创建请求ID, 用于追踪
+		traceid = genStr("r", 32) // 创建请求ID, 用于追踪
 		request.Header.Set("X-Request-Id", traceid)
 	}
 	return traceid

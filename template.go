@@ -100,8 +100,8 @@ func (aa *tmpl) Preload(dir string) error {
 			tpl.Tpl.Funcs(aa.FuncMap)
 		}
 		aa.tpls[tpl.Key] = tpl
-		if IsDebug() {
-			Logf("[_preload]: [tplkit] %s", tpl.Key)
+		if isDebug() {
+			logf("[_preload]: [tplkit] %s", tpl.Key)
 		}
 		return nil
 	})
