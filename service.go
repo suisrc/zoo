@@ -1,3 +1,8 @@
+// Copyright 2026 suisrc. All rights reserved.
+// Based on the path package, Copyright 2009 The Go Authors.
+// Use of this source code is governed by a BSD-style license that can be found
+// at https://github.com/suisrc/zoo/blob/main/LICENSE.
+
 package zoo
 
 import (
@@ -12,37 +17,41 @@ import (
 
 // service 管理工具
 
-var _ SvcKit = (*SvcKitDef)(nil)
+var _ SvcKit = (*svcz)(nil)
 
-type SvcKitDef struct {
-	server *Zoo
+type svcz struct {
+	engine *Zoo
 	svcmap map[string]any
 	typmap map[reflect.Type]any
 	svclck sync.RWMutex
 }
 
-func NewSvcKit(server *Zoo) SvcKit {
-	svckit := &SvcKitDef{
-		server: server,
+func NewSvcKit(engine *Zoo) SvcKit {
+	svckit := &svcz{
+		engine: engine,
 		svcmap: make(map[string]any),
 		typmap: make(map[reflect.Type]any),
 	}
 	svckit.svcmap["svckit"] = svckit
-	svckit.typmap[reflect.TypeFor[*SvcKitDef]()] = svckit
+	svckit.typmap[reflect.TypeFor[*svcz]()] = svckit
 	return svckit
 }
 
-func (aa *SvcKitDef) Zoo() *Zoo {
-	return aa.server
+func (aa *svcz) Engine() *Zoo {
+	return aa.engine
 }
 
-func (aa *SvcKitDef) Get(key string) any {
+func (aa *svcz) Router(key string, hdl HandleFunc) {
+	aa.engine.AddRouter(key, hdl)
+}
+
+func (aa *svcz) Get(key string) any {
 	aa.svclck.RLock()
 	defer aa.svclck.RUnlock()
 	return aa.svcmap[key]
 }
 
-func (aa *SvcKitDef) Set(key string, val any) SvcKit {
+func (aa *svcz) Set(key string, val any) SvcKit {
 	aa.svclck.Lock()
 	defer aa.svclck.Unlock()
 	if val != nil {
@@ -66,7 +75,7 @@ func (aa *SvcKitDef) Set(key string, val any) SvcKit {
 	return aa
 }
 
-func (aa *SvcKitDef) Map() map[string]any {
+func (aa *svcz) Map() map[string]any {
 	aa.svclck.RLock()
 	defer aa.svclck.RUnlock()
 	ckv := make(map[string]any)
@@ -74,7 +83,7 @@ func (aa *SvcKitDef) Map() map[string]any {
 	return ckv
 }
 
-func (aa *SvcKitDef) toInjName(tType, tField string) string {
+func (aa *svcz) toInjName(tType, tField string) string {
 	name := fmt.Sprintf("%s.%s", tType, tField)
 	if size := len(name); size < 36 {
 		name += strings.Repeat(" ", 36-size)
@@ -82,7 +91,7 @@ func (aa *SvcKitDef) toInjName(tType, tField string) string {
 	return name
 }
 
-func (aa *SvcKitDef) Inj(obj any) SvcKit {
+func (aa *svcz) Inject(obj any) SvcKit {
 	aa.svclck.RLock()
 	defer aa.svclck.RUnlock()
 	// 构建注入映射
@@ -194,13 +203,13 @@ func FieldInject(target any, value any, tag string, debug bool) bool {
 // -----------------------------------------------------------------------------------
 
 // GET http method
-func GET(action string, handle HandleFunc, zoo *Zoo) {
-	zoo.AddRouter(http.MethodGet+" "+action, handle)
+func GET(key string, hdl HandleFunc, svc SvcKit) {
+	svc.Router(http.MethodGet+" "+key, hdl)
 }
 
 // POST http method
-func POST(action string, handle HandleFunc, zoo *Zoo) {
-	zoo.AddRouter(http.MethodPost+" "+action, handle)
+func POST(key string, hdl HandleFunc, svc SvcKit) {
+	svc.Router(http.MethodPost+" "+key, hdl)
 }
 
 /**
@@ -216,7 +225,7 @@ func RegKey[T any](kit SvcKit, inj bool, key string, val T) T {
 	}
 	kit.Set(key, val)
 	if inj {
-		kit.Inj(val) // 自动注入， 可以注入自己
+		kit.Inject(val) // 自动注入， 可以注入自己
 	}
 	return val
 }
@@ -231,6 +240,6 @@ func RegSvc[T any](kit SvcKit, val T) T {
 // 注册服务， name = val.(type)， 并自动初始化 val 实体
 func Inject[T any](kit SvcKit, val T) T {
 	key := reflect.TypeOf(val).Elem().Name()
-	kit.Set(key, val).Inj(val) // 自动注入， 可以注入自己
+	kit.Set(key, val).Inject(val) // 自动注入， 可以注入自己
 	return val
 }

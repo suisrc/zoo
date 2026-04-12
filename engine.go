@@ -102,7 +102,7 @@ func (aa *Zoo) ServeInit() bool {
 		Logf("[_router_]: build %s.router by [-eng %s]\n", aa.Engine.Name(), G.Server.Engine)
 	}
 	if aa.TplKit == nil {
-		aa.TplKit = NewTplKit(aa)
+		aa.TplKit = NewTplKit(aa.SvcKit)
 		if G.Server.TplPath != "" {
 			err := aa.TplKit.Preload(G.Server.TplPath)
 			if err != nil {
@@ -118,12 +118,12 @@ func (aa *Zoo) ServeInit() bool {
 		}
 		if IsDebug() {
 			ekey := opt.Key
-			if size := len(ekey); size < 72 {
-				ekey += " " + strings.Repeat("-", 71-size)
+			if size := len(ekey); size < 42 {
+				ekey += " " + strings.Repeat("-", 41-size)
 			}
 			Logf("[register]: %s", ekey)
 		}
-		cls := opt.Val(aa)
+		cls := opt.Val(aa.SvcKit)
 		if cls != nil {
 			aa.Closeds.Add(cls)
 		}
@@ -141,7 +141,7 @@ func (aa *Zoo) ServeInit() bool {
 func (aa *Zoo) AddRouter(key string, handle HandleFunc) {
 	if key == "" {
 		if IsDebug() {
-			Logf("[_handle_]: %36s    %p\n", "/", handle)
+			Logf("[_handle_]: %32s  %p  %s\n", "/", handle, GetFuncInfo(handle))
 		}
 		aa.Engine.Handle("", "", handle)
 		return
@@ -170,7 +170,7 @@ func (aa *Zoo) AddRouter(key string, handle HandleFunc) {
 	}
 
 	if IsDebug() { // log for debug
-		Logf("[_handle_]: %62s  %p  %s\n", method+" /"+action, handle, GetFuncInfo(handle))
+		Logf("[_handle_]: %32s  %p  %s\n", method+" /"+action, handle, GetFuncInfo(handle))
 	}
 	aa.Engine.Handle(method, action, handle)
 }
@@ -273,41 +273,6 @@ func (srv *servez) RunServe() {
 			Logn(fmt.Sprintf("[_server_]: server error: %s\n", err))
 		}
 	}
-}
-
-// -----------------------------------------------------------------------------------
-var HttpServeDef = true // 是否启动默认 http 服务? 这里不能通过配置，只能通过代码控制
-
-func RegisterHttpServe(zoo *Zoo) Closed {
-	if !HttpServeDef {
-		return nil // 不启动默认服务
-	}
-	if G.Server.Local {
-		G.Server.Addr = "127.0.0.1"
-	}
-	if G.Server.Ptls > 0 && zoo.TLSConf != nil {
-		addr := fmt.Sprintf("%s:%d", G.Server.Addr, G.Server.Ptls)
-		zoo.Servers.Add(NewServer("(HTTPS)", zoo, addr, zoo.TLSConf))
-	}
-	if G.Server.Port > 0 && (zoo.TLSConf == nil || G.Server.Dual) {
-		addr := fmt.Sprintf("%s:%d", G.Server.Addr, G.Server.Port)
-		zoo.Servers.Add(NewServer("(HTTP1)", zoo, addr, nil))
-	}
-	zoo.AddRouter("healthz", Healthz) // 默认注册健康检查
-	return nil
-}
-
-// 健康检查接口
-func Healthz(ctx *Ctx) {
-	ctx.JSON(&Result{Success: true, Data: time.Now().Format("2006-01-02 15:04:05")})
-}
-
-// favicon.ico
-func Favicon(ctx *Ctx) {
-	// 缓存1小时
-	ctx.Writer.Header().Set("Cache-Control", "max-age=3600")
-	ctx.Writer.Header().Set("Content-Type", "image/x-icon")
-	ctx.Writer.Write([]byte{})
 }
 
 // -----------------------------------------------------------------------------------

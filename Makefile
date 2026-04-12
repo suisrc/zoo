@@ -14,5 +14,5 @@ git:
 		git add -A && git commit -am "$(m)" && git push; \
 	fi
 	@if [ "$(t)" ]; then \
-	 	git tag -a $(t) -m "${t}" && git push origin $(t); \
+		git tag -a $(t) -m "${t}" && git push origin $(t); \
 	fi

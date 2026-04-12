@@ -1,3 +1,8 @@
+// Copyright 2026 suisrc. All rights reserved.
+// Based on the path package, Copyright 2009 The Go Authors.
+// Use of this source code is governed by a BSD-style license that can be found
+// at https://github.com/suisrc/zoo/blob/main/LICENSE.
+
 package zoo
 
 import (
@@ -16,28 +21,28 @@ var (
 	ErrTplNotFound = errors.New("tpl not found")
 )
 
-var _ TplKit = (*TplKitDef)(nil)
+var _ TplKit = (*tmpl)(nil)
 
-type TplKitDef struct {
+type tmpl struct {
 	tpls map[string]*TplCtx // 所有模版集合
 	lock sync.RWMutex       // 读写锁
 
 	FuncMap template.FuncMap // 支持链式调用
 }
 
-func NewTplKit(server *Zoo) TplKit {
-	return &TplKitDef{
+func NewTplKit(srv SvcKit) TplKit {
+	return &tmpl{
 		tpls: make(map[string]*TplCtx),
 	}
 }
 
-func (aa *TplKitDef) Get(key string) *TplCtx {
+func (aa *tmpl) Get(key string) *TplCtx {
 	aa.lock.RLock()
 	defer aa.lock.RUnlock()
 	return aa.tpls[key]
 }
 
-func (tk *TplKitDef) Render(wr io.Writer, name string, data any) error {
+func (tk *tmpl) Render(wr io.Writer, name string, data any) error {
 	tpl := tk.Get(name)
 	if tpl == nil {
 		return ErrTplNotFound
@@ -47,7 +52,7 @@ func (tk *TplKitDef) Render(wr io.Writer, name string, data any) error {
 	return tpl.Tpl.Execute(wr, data)
 }
 
-func (aa *TplKitDef) Load(key string, str string) *TplCtx {
+func (aa *tmpl) Load(key string, str string) *TplCtx {
 	aa.lock.Lock()
 	defer aa.lock.Unlock()
 	if tpl, ok := aa.tpls[key]; ok {
@@ -64,7 +69,7 @@ func (aa *TplKitDef) Load(key string, str string) *TplCtx {
 	return tpl
 }
 
-func (aa *TplKitDef) Preload(dir string) error {
+func (aa *tmpl) Preload(dir string) error {
 	aa.lock.Lock()
 	defer aa.lock.Unlock()
 	// 读取 dir 文件夹中 所有的 *.html 文件

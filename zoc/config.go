@@ -3,10 +3,6 @@
 // Use of this source code is governed by a BSD-style license that can be found
 // at https://github.com/suisrc/zoo/blob/main/LICENSE.
 
-// zc 原本是 zoo config 的简写， 只为对 zoo 的应用进行配置的处理
-// 但是随着功能的增多， zc 现在已经成为了 zoo core 层，这属实无奈
-// 之后极可能控制新功能的引入， 已保障 zc 的简洁
-
 package zoc
 
 import (

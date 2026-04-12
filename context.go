@@ -88,7 +88,7 @@ func (ctx *Ctx) HTML(tpl string, res any, hss int) {
 	if hss > 0 {
 		ctx.Writer.WriteHeader(hss)
 	}
-	HTML0(ctx.SvcKit.Zoo(), ctx.Request, ctx.Writer, res, tpl)
+	HTML0(ctx.SvcKit.Engine(), ctx.Request, ctx.Writer, res, tpl)
 }
 
 // 已 TEXT 模板格式写出响应
@@ -299,7 +299,7 @@ func HTML0(zg *Zoo, rr *http.Request, rw http.ResponseWriter, rs any, tp string)
 type Closed func()
 
 // 定义配置函数
-type OptionFunc func(*Zoo) Closed
+type OptionFunc func(SvcKit) Closed
 
 var (
 	// 应用配置列表，依据 key 排序，初始化顺序
@@ -344,11 +344,12 @@ type TplKit interface {
 
 // 服务工具接口
 type SvcKit interface {
-	Zoo() *Zoo                      // 获取模块管理器 *Zoo 接口
-	Get(key string) any             // 获取服务
-	Set(key string, val any) SvcKit // 增加服务 val = nil 是卸载服务
-	Map() map[string]any            // 服务列表, 注意，是副本
-	Inj(obj any) SvcKit             // 注册服务 injec 使用 `svckit:"xxx"` 初始化服务
+	Engine() *Zoo                      // 获取模块管理器 *Zoo 接口
+	Inject(obj any) SvcKit             // 注册服务 inject 使用 `svckit:"xxx"` 初始化服务
+	Router(key string, hdl HandleFunc) // 注册路由
+	Get(key string) any                // 获取服务
+	Set(key string, val any) SvcKit    // 增加服务 val = nil 是卸载服务
+	Map() map[string]any               // 服务列表, 注意，是副本
 }
 
 // 引擎接口, Engine, 不适用 Router 是为了和 其他 Router 名字上区分开。以便于支持多 Router 而不会出现冲突

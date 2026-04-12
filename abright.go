@@ -1,9 +1,17 @@
+// Copyright 2026 suisrc. All rights reserved.
+// Based on the path package, Copyright 2009 The Go Authors.
+// Use of this source code is governed by a BSD-style license that can be found
+// at https://github.com/suisrc/zoo/blob/main/LICENSE.
+
 package zoo
 
 import (
 	"encoding/hex"
 	"flag"
+	"fmt"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/suisrc/zoo/zoc"
 )
@@ -23,12 +31,13 @@ var (
 	Printf = zoc.Logf
 
 	// 其他工具函数
-	Config    = zoc.Register
-	ToStr     = zoc.ToStr
-	HexStr    = hex.EncodeToString
-	GenStr    = zoc.GenStr
-	GenUUIDv4 = zoc.GenUUIDv4
-	UnicodeTo = zoc.UnicodeToRunes
+	Config     = zoc.Register
+	LoadConfig = zoc.LoadConfig
+	ToStr      = zoc.ToStr
+	HexStr     = hex.EncodeToString
+	GenStr     = zoc.GenStr
+	GenUUIDv4  = zoc.GenUUIDv4
+	UnicodeTo  = zoc.UnicodeToRunes
 
 	GetHostname  = zoc.GetHostname
 	GetNamespace = zoc.GetNamespace
@@ -58,6 +67,29 @@ func Initializ() {
 	//  register default serve
 	Register("90-server", RegisterHttpServe)
 }
+
+// 程序入口
+func Execute(envpre, appname, version, appinfo string) {
+	if envpre != "" {
+		zoc.CFG_ENV = strings.ToUpper(envpre)
+	}
+	AppName, Version, AppInfo = appname, version, appinfo
+	if len(os.Args) < 2 || strings.HasPrefix(os.Args[1], "-") {
+		cmds["web"]() // run  def http server
+		return        // wait for server stop
+	}
+	cmd := os.Args[1]
+	if command, ok := cmds[cmd]; ok {
+		// 修改命令参数
+		os.Args = append(os.Args[:1], os.Args[2:]...)
+		command() // run command
+		// flag.Parse() > flag.CommandLine.Parse(os.Args[2:])
+	} else {
+		fmt.Println("unknown command:", cmd)
+	}
+}
+
+// ----------------------------------------------------------------------------
 
 // 请求数据
 func ReadForm[T any](rr *http.Request, rb T) (T, error) {

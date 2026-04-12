@@ -1,3 +1,8 @@
+// Copyright 2026 suisrc. All rights reserved.
+// Based on the path package, Copyright 2009 The Go Authors.
+// Use of this source code is governed by a BSD-style license that can be found
+// at https://github.com/suisrc/zoo/blob/main/LICENSE.
+
 package zoo
 
 import (
@@ -70,5 +75,5 @@ func EncodeHtml3(rr *http.Request, rw http.ResponseWriter, rs *Result) {
 	if rs.Status > 0 {
 		rw.WriteHeader(rs.Status)
 	}
-	HTML0(rs.Ctx.SvcKit.Zoo(), rr, rw, rs, tmpl)
+	HTML0(rs.Ctx.SvcKit.Engine(), rr, rw, rs, tmpl)
 }
