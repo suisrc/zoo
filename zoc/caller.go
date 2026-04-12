@@ -1,0 +1,127 @@
+package zoc
+
+import (
+	"reflect"
+	"regexp"
+	"runtime"
+	"strings"
+)
+
+func If[T any](val bool, tval, fval T) T {
+	if val {
+		return tval
+	}
+	return fval
+}
+
+var (
+	rePtrCaller = regexp.MustCompile(`^\(\*(.*)\)\.(.*)$`)
+	reValCaller = regexp.MustCompile(`^(.*)\.(.*)$`)
+)
+
+// MethodInfo 存储方法信息
+type MethodInfo struct {
+	PackageName string // 包名
+	StructName  string // 结构体名（如果是方法）
+	MethodName  string // 方法名或函数名
+	IsPointer   bool   // 是否是指针方法
+	FilePath    string // 文件路径
+	FileName    string // 文件名
+	FileLine    int    // 行号
+}
+
+// GetCurrentMethodInfo 获取当前方法的信息
+func GetCurrentMethodInfo() *MethodInfo {
+	return GetCallerMethodInfo(2)
+}
+
+// GetCallerMethodInfo 获取调用者的方法信息
+func GetCallerMethodInfo(depth int) *MethodInfo {
+	if depth < 1 {
+		depth = 1
+	}
+	pc, file, line, ok := runtime.Caller(depth)
+	if !ok {
+		return nil
+	}
+	finfo := runtime.FuncForPC(pc).Name()
+	minfo := ParseMethodInfo(finfo)
+	minfo.FileLine = line
+	minfo.FilePath = file
+	if slash := strings.LastIndex(file, "/"); slash >= 0 {
+		file = file[slash+1:]
+	}
+	minfo.FileName = file
+	return minfo
+}
+
+// ParseMethodInfo 解析完整函数名
+func ParseMethodInfo(finfo string) *MethodInfo {
+	info := &MethodInfo{}
+	// 分割包名和函数名
+	parts := strings.Split(finfo, ".")
+	if len(parts) < 2 {
+		info.MethodName = finfo
+		return info
+	}
+	info.PackageName = parts[0]
+	rest := strings.Join(parts[1:], ".")
+	// 匹配指针方法：(*User).GetName
+	matches := rePtrCaller.FindStringSubmatch(rest)
+	if len(matches) == 3 {
+		info.StructName = matches[1]
+		info.MethodName = matches[2]
+		info.IsPointer = true
+		return info
+	}
+	// 匹配值方法：User.GetName
+	matches = reValCaller.FindStringSubmatch(rest)
+	if len(matches) == 3 {
+		info.StructName = matches[1]
+		info.MethodName = matches[2]
+		info.IsPointer = false
+		return info
+	}
+	// 普通函数
+	info.MethodName = rest
+	return info
+}
+
+// GetFuncInfo 获取函数或方法的简短名称
+func GetFuncInfo(obj any) string {
+	if obj == nil {
+		return "<nil>"
+	}
+	fnValue := reflect.ValueOf(obj)
+	pc := fnValue.Pointer()
+	fn := runtime.FuncForPC(pc)
+	if fn == nil {
+		return "<nfn>"
+	}
+	fnName := fn.Name()
+	if idx := strings.LastIndexByte(fnName, '/'); idx > 0 {
+		fnName = fnName[idx+1:]
+	}
+	return fnName
+}
+
+// GetTraceFile 获取调用者的文件名和行号
+func GetTraceFile(depth int) (string, int) {
+	if depth < 0 {
+		depth = 0
+	}
+	_, file, line, ok := runtime.Caller(depth + 1)
+	if !ok {
+		file = "???"
+		line = 1
+	} else {
+		if slash := strings.LastIndex(file, "/"); slash >= 0 {
+			path := file
+			file = path[slash+1:]
+			if dirsep := strings.LastIndex(path[:slash], "/"); dirsep >= 0 {
+				file = path[dirsep+1:]
+			}
+		}
+	}
+	return file, line
+}

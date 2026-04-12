@@ -1,0 +1,77 @@
+// Copyright 2026 suisrc. All rights reserved.
+// Based on the path package, Copyright 2009 The Go Authors.
+// Use of this source code is governed by a BSD-style license that can be found
+// at https://github.com/suisrc/zoo/blob/main/LICENSE.
+
+// 根据指定的 CA 动态生成证书
+
+package tlsauto
+
+import (
+	"crypto/tls"
+	"flag"
+	"os"
+
+	"github.com/suisrc/zoo"
+	"github.com/suisrc/zoo/zoc"
+	"github.com/suisrc/zoo/zoe/tlsx"
+)
+
+var (
+	G = struct {
+		Server ServerConfig
+	}{}
+)
+
+type ServerConfig struct {
+	CrtCA string `json:"cacrt"`
+	KeyCA string `json:"cakey"`
+	IsSAA bool   `json:"casaa"`
+}
+
+func init() {
+	zoo.Config(&G)
+	flag.StringVar(&(G.Server.CrtCA), "cacrt", "", "http server crt ca file")
+	flag.StringVar(&(G.Server.KeyCA), "cakey", "", "http server key ca file")
+	flag.BoolVar(&G.Server.IsSAA, "casaa", false, "是否是中间证书")
+
+	zoo.Register("10-tlsauto", func(zoo *zoo.Zoo) zoo.Closed {
+		if G.Server.CrtCA == "" || G.Server.KeyCA == "" {
+			zoc.Logn("[_tlsauto]: cacrt file or cakey file is empty")
+			return nil
+		}
+		zoc.Logn("[_tlsauto]: crt=", G.Server.CrtCA, " key=", G.Server.KeyCA)
+
+		caCrtBts, err := os.ReadFile(G.Server.CrtCA)
+		if err != nil {
+			zoo.ServeStop("[_tlsauto]: cacrt file error:", err.Error())
+			return nil
+		}
+		caKeyBts, err := os.ReadFile(G.Server.KeyCA)
+		if err != nil {
+			zoo.ServeStop("[_tlsauto]: cakey file error:", err.Error())
+			return nil
+		}
+		certConf := tlsx.CertConfig{
+			"default": {
+				Expiry:  "10y",
+				KeySize: 2048,
+				SubjectName: tlsx.SignSubject{
+					Organization:     "default",
+					OrganizationUnit: "default",
+				},
+			},
+		}
+
+		cfg := &tls.Config{}
+		cfg.GetCertificate = (&tlsx.TLSAutoConfig{
+			CaKeyBts: caKeyBts,
+			CaCrtBts: caCrtBts,
+			CertConf: certConf,
+			IsSaCert: G.Server.IsSAA,
+		}).GetCertificate
+		zoo.TLSConf = cfg
+
+		return nil
+	})
+}

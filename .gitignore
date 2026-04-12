@@ -1,0 +1,27 @@
+!.vscode
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+.idea
+
+# Test binary, build with `go test -c`
+*.test
+
+# Other foler to ignore
+out
+www
+dist
+logs
+ksql
+
+# Other files to ignore
+*.out
+*.log
+zoo.test.*
+
+# agent takes ignore
+agenttask.md

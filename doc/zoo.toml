@@ -1,0 +1,11 @@
+# 配置文件
+print=true
+debug=true
+
+[server]
+# local = true
+addr = "0.0.0.0"
+port = 8080
+# map, mux, rdx
+engine="rdx"
+xrt="2"
