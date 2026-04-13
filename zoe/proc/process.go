@@ -3,7 +3,6 @@ package proc
 import (
 	"errors"
 	"io"
-	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -20,12 +19,13 @@ var (
 
 type Process interface {
 	Pid() int
-	Start() error
+	Start() (*exec.Cmd, error)
 	Serve() error
 	Stop(time.Duration) error
 	Wait(time.Duration) error
 	State() string
 	Restart(time.Duration) error
+	Execute(...io.Writer) (func(), error)
 	String() string
 }
 
@@ -35,8 +35,7 @@ const (
 	stateStopping = "stopping"
 )
 
-type process0 struct {
-	logger  io.Writer
+type process struct {
 	command string
 	args    []string
 
@@ -47,19 +46,15 @@ type process0 struct {
 }
 
 // ProcessController 是一个进程控制器，提供启动、停止、重启和状态查询等功能
-func NewProcess(logger io.Writer, command string, args ...string) Process {
-	if logger == nil {
-		logger = os.Stdout
-	}
-	return &process0{
-		logger:  logger,
+func NewProcess(command string, args ...string) Process {
+	return &process{
 		command: command,
 		args:    args,
 		state:   stateStopped,
 	}
 }
 
-func (p *process0) String() string {
+func (p *process) String() string {
 	// return p.command + " " + strings.Join(p.args, " ")
 	buf := strings.Builder{}
 	buf.WriteString(p.command)
@@ -78,7 +73,7 @@ func (p *process0) String() string {
 }
 
 // Pid 返回当前进程的 PID，如果没有在运行，返回 0
-func (p *process0) Pid() int {
+func (p *process) Pid() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.cmd != nil && p.state != stateStopped {
@@ -88,18 +83,18 @@ func (p *process0) Pid() int {
 }
 
 // Start 启动进程，异步启动，不等待
-func (p *process0) Start() error {
-	wait, err := p.enforce()
+func (p *process) Start() (*exec.Cmd, error) {
+	wait, err := p.Execute()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	go wait()
-	return nil
+	return p.cmd, nil
 }
 
 // Serve 启动进程， 并等待进程结束
-func (p *process0) Serve() error {
-	wait, err := p.enforce()
+func (p *process) Serve() error {
+	wait, err := p.Execute()
 	if err != nil {
 		return err
 	}
@@ -107,8 +102,8 @@ func (p *process0) Serve() error {
 	return nil
 }
 
-// enforce 启动进程，返回一个函数用于等待进程结束
-func (p *process0) enforce() (func(), error) {
+// Execute 启动进程，返回一个函数用于等待进程结束
+func (p *process) Execute(iow ...io.Writer) (func(), error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.state != stateStopped {
@@ -116,8 +111,12 @@ func (p *process0) enforce() (func(), error) {
 	}
 	// 创建启动命令
 	cmd := exec.Command(p.command, p.args...)
-	cmd.Stdout = p.logger
-	cmd.Stderr = p.logger
+	if len(iow) > 0 {
+		cmd.Stdout = iow[0]
+	}
+	if len(iow) > 1 {
+		cmd.Stderr = iow[1]
+	}
 	// 在非 Windows 系统上，设置 SysProcAttr 以创建新的进程组
 	if attr := newSysProcAttr(); attr != nil {
 		cmd.SysProcAttr = attr
@@ -133,9 +132,8 @@ func (p *process0) enforce() (func(), error) {
 	done := p.done
 	// 等待进程结束, 并在结束后更新状态
 	return func() {
-		err := cmd.Wait()
-		p.markStopped(cmd, done)
-		if err != nil {
+		defer p.markStopped(cmd, done) // 确保在进程结束后更新状态
+		if err := cmd.Wait(); err != nil {
 			zoc.Logn("[_process]: process exited with error:", err)
 		} else {
 			zoc.Logn("[_process]: process exited successfully")
@@ -144,7 +142,7 @@ func (p *process0) enforce() (func(), error) {
 }
 
 // Stop 停止进程，发送 SIGTERM 信号，等待进程结束，如果超过 5 秒还没有结束，强制杀死进程
-func (p *process0) Stop(timeout time.Duration) error {
+func (p *process) Stop(timeout time.Duration) error {
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
@@ -195,7 +193,7 @@ func (p *process0) Stop(timeout time.Duration) error {
 }
 
 // Wait 等待进程停止，超时返回错误
-func (p *process0) Wait(timeout time.Duration) error {
+func (p *process) Wait(timeout time.Duration) error {
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
@@ -220,14 +218,14 @@ func (p *process0) Wait(timeout time.Duration) error {
 }
 
 // State 返回当前进程状态，可能的值为 "stopped", "running", "stopping"
-func (p *process0) State() string {
+func (p *process) State() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.state
 }
 
 // Restart 先停止进程，再启动新进程，更新状态为 running
-func (p *process0) Restart(timeout time.Duration) error {
+func (p *process) Restart(timeout time.Duration) error {
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
@@ -237,10 +235,11 @@ func (p *process0) Restart(timeout time.Duration) error {
 	if err := p.Wait(timeout); err != nil {
 		return err
 	}
-	return p.Start()
+	_, err := p.Start()
+	return err
 }
 
-func (p *process0) markStopped(cmd *exec.Cmd, done chan struct{}) {
+func (p *process) markStopped(cmd *exec.Cmd, done chan struct{}) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.cmd == cmd {
@@ -251,7 +250,7 @@ func (p *process0) markStopped(cmd *exec.Cmd, done chan struct{}) {
 	close(done)
 }
 
-func (p *process0) restoreRunning(cmd *exec.Cmd) {
+func (p *process) restoreRunning(cmd *exec.Cmd) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.cmd == cmd && p.state == stateStopping {

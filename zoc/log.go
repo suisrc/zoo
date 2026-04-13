@@ -56,6 +56,8 @@ var (
 	stdLogger = slog.New(NewLogStdHandler(os.Stdout, nil))
 	// bufPool 用于 LogLineHandler 的缓冲区池
 	bufPool = sync.Pool{New: func() any { return new([]byte) }}
+	// time format
+	TimeRFC = "2006-01-02T15:04:05.000Z07:00"
 )
 
 // 基础颜色函数
