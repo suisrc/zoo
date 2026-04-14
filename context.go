@@ -19,17 +19,8 @@ import (
 	"text/template"
 )
 
-// map any
-type HA map[string]any
-
-// map str
-type HM map[string]string
-
 // 定义处理函数
-type HandleFunc func(rc *Ctx)
-
-// Params 通过 Path Params 获取参数， 例如 /user/:id, 则可以通过 Params("id") 获取参数值
-type Params func(key string) string
+type HandleFunc func(zrc *Ctx)
 
 // 请求上下文内容
 type Ctx struct {
@@ -41,9 +32,9 @@ type Ctx struct {
 	// Request action
 	Action string
 	// Request Cache
-	Caches HA
+	Caches map[string]any
 	// Params
-	Params Params
+	Params func(key string) string
 	// Request
 	Request *http.Request
 	// Response
@@ -139,7 +130,7 @@ func (ctx *Ctx) JERR(err error, hss int) {
 // 创建上下文函数
 func NewCtx(svckit SvcKit, request *http.Request, writer http.ResponseWriter, router string) *Ctx {
 	action := GetAction(request.URL)
-	ctx := &Ctx{SvcKit: svckit, Action: action, Caches: HA{}, Request: request, Writer: writer}
+	ctx := &Ctx{SvcKit: svckit, Action: action, Caches: map[string]any{}, Request: request, Writer: writer}
 	ctx._router = router
 	ctx.Ctx, ctx.Cancel = context.WithCancel(context.Background())
 	ctx.TraceID = GetTraceID(request)
@@ -226,10 +217,10 @@ type Result struct {
 	TraceID string `json:"traceid,omitempty"`
 	Total   *int   `json:"total,omitempty"`
 
-	Ctx    *Ctx   `json:"-"`
-	Status int    `json:"-"`
-	Header HM     `json:"-"`
-	TplKey string `json:"-"`
+	Ctx    *Ctx              `json:"-"`
+	Status int               `json:"-"`
+	Header map[string]string `json:"-"`
+	TplKey string            `json:"-"`
 }
 
 func (aa *Result) Error() string {

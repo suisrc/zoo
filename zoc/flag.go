@@ -13,6 +13,12 @@ import (
 	"strings"
 )
 
+// map any
+type HA map[string]any
+
+// map str
+type HM map[string]string
+
 var _ flag.Value = (*stringVal)(nil)
 
 // -- string Value
